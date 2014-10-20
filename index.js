@@ -11,10 +11,10 @@ try {
 } catch(e) {
   console.log("Failed to find local config, falling back to environment variables");
   config = {
-    twitter_consumer_key: process.env.twitter_consumer_key,
-    twitter_consumer_secret: process.env.twitter_consumer_secret,
-    twitter_access_token_key: process.env.twitter_access_token_key,
-    twitter_access_token_secret: process.env.twitter_access_token_secret
+    twitter_consumer_key: process.env.TWITTER_CONSUMER_KEY,
+    twitter_consumer_secret: process.env.TWITTER_CONSUMER_SECRET,
+    twitter_access_token_key: process.env.TWITTER_ACCESS_TOKEN_KEY,
+    twitter_access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET
   }
 }
 
@@ -38,6 +38,11 @@ app.use(bodyParser.json());
 
 // Serve static files from directory
 // app.use(express.static(root));
+
+// Ping
+app.get("/ping", function(req, res) {
+  res.status(200).end();
+});
 
 // Get stats for past 24 hours
 app.get("/stats/:tech/24hours.json", function(req, res, next) {
