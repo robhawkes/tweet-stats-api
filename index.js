@@ -104,7 +104,8 @@ twit.stream("filter", {
   });
 
   stream.on("error", function(error) {
-    throw new Error(error);
+    // throw new Error(error);
+    console.log("Error", error);
   });
 
   stream.on("end", function(response) {
