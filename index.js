@@ -156,7 +156,7 @@ var processTweet = function(tweet) {
 
       // New minute
       if (!technologyStats[keyword].past24.lastTime || technologyStats[keyword].past24.lastTime.getMinutes() != statsTime.getMinutes()) {
-        if (technologyStats[keyword].past24.data.length > 0) {
+        if (technologyStats[keyword].past24.data[0]) {
           // Send previous minute to graphs
           var statsPayload = {
             tech: keyword.toLowerCase(),
