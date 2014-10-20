@@ -12,8 +12,8 @@ try {
   console.log("Failed to find local config, falling back to environment variables");
   config = {
     pusher_app_id: process.env.PUSHER_APP_ID,
-    pusher_key: process.env.PUSHER_APP_KEY,
-    pusher_secret: process.env.PUSHER_APP_SECRET,
+    pusher_key: process.env.PUSHER_KEY,
+    pusher_secret: process.env.PUSHER_SECRET,
     twitter_consumer_key: process.env.TWITTER_CONSUMER_KEY,
     twitter_consumer_secret: process.env.TWITTER_CONSUMER_SECRET,
     twitter_access_token_key: process.env.TWITTER_ACCESS_TOKEN_KEY,
