@@ -21,7 +21,7 @@ try {
   }
 }
 
-var silent = true;
+var silent = false;
 
 var keywords = ["html5", "javascript", "css", "webgl", "websockets", "nodejs", "node.js"];
 var technologyStats = {};
@@ -32,11 +32,11 @@ var technologyStats = {};
 // --------------------------------------------------------------------
 var Pusher = require("pusher");
 var pusher = new Pusher({
-  appId: config.app_id,
-  key: config.key,
-  secret: config.secret
+  appId: config.pusher_app_id,
+  key: config.pusher_key,
+  secret: config.pusher_secret,
+  host: "api-megabus.pusher.com"
 });
-pusher.domain = "api-megabus.pusher.com";
 
 
 // --------------------------------------------------------------------
@@ -121,12 +121,12 @@ twit.stream("filter", {
   stream.on("error", function(error) {
     // throw new Error(error);
     console.log("Error");
-    //console.log(error);
+    console.log(error);
   });
 
   stream.on("end", function(response) {
     console.log("Stream end");
-    console.log(response);
+    // console.log(response);
   });
 
   // Disconnect stream after five seconds
@@ -159,12 +159,16 @@ var processTweet = function(tweet) {
       // New minute
       if (!technologyStats[keyword].past24.lastTime || technologyStats[keyword].past24.lastTime.getMinutes() != statsTime.getMinutes()) {
         if (technologyStats[keyword].past24.data[0]) {
+          if (!silent) console.log("Sending previous minute via Pusher");
+
           // Send previous minute to graphs
           var statsPayload = {
             tech: keyword.toLowerCase(),
             time: technologyStats[keyword].past24.lastTime.getTime(),
-            data: technologyStats[keyword].past24.data[0]
+            value: technologyStats[keyword].past24.data[0]
           };
+
+          if (!silent) console.log(statsPayload);
 
           pusher.trigger("stats", "update", statsPayload);
         }
