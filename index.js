@@ -148,7 +148,7 @@ var processTweet = function(tweet) {
           past24: {
             total: 0,
             lastTime: null,
-            // Per-hour, with anything after 24-hours removed
+            // Per-minute, with anything after 24-hours removed
             data: []
           }
         }
