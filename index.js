@@ -120,11 +120,13 @@ twit.stream("filter", {
 
   stream.on("error", function(error) {
     // throw new Error(error);
-    // console.log("Error", error);
+    console.log("Error");
+    //console.log(error);
   });
 
   stream.on("end", function(response) {
-    console.log("Stream end: " + response);
+    console.log("Stream end");
+    console.log(response);
   });
 
   // Disconnect stream after five seconds
