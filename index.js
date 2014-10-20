@@ -36,6 +36,7 @@ var pusher = new Pusher({
   key: config.key,
   secret: config.secret
 });
+pusher.domain = "api-megabus.pusher.com";
 
 
 // --------------------------------------------------------------------
