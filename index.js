@@ -156,14 +156,16 @@ var processTweet = function(tweet) {
 
       // New minute
       if (!technologyStats[keyword].past24.lastTime || technologyStats[keyword].past24.lastTime.getMinutes() != statsTime.getMinutes()) {
-        // Send previous minute to graphs
-        var statsPayload = {
-          tech: keyword.toLowerCase(),
-          time: technologyStats[keyword].past24.lastTime.getTime(),
-          data: technologyStats[keyword].past24.data[0]
-        };
+        if (technologyStats[keyword].past24.data.length > 0) {
+          // Send previous minute to graphs
+          var statsPayload = {
+            tech: keyword.toLowerCase(),
+            time: technologyStats[keyword].past24.lastTime.getTime(),
+            data: technologyStats[keyword].past24.data[0]
+          };
 
-        pusher.trigger("stats", "update", statsPayload);
+          pusher.trigger("stats", "update", statsPayload);
+        }
 
         if (!silent) console.log("Adding to new stats minute");
 
