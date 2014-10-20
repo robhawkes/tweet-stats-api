@@ -11,6 +11,9 @@ try {
 } catch(e) {
   console.log("Failed to find local config, falling back to environment variables");
   config = {
+    pusher_app_id: process.env.PUSHER_APP_ID,
+    pusher_key: process.env.PUSHER_APP_KEY,
+    pusher_secret: process.env.PUSHER_APP_SECRET,
     twitter_consumer_key: process.env.TWITTER_CONSUMER_KEY,
     twitter_consumer_secret: process.env.TWITTER_CONSUMER_SECRET,
     twitter_access_token_key: process.env.TWITTER_ACCESS_TOKEN_KEY,
@@ -22,6 +25,17 @@ var silent = true;
 
 var keywords = ["html5", "javascript", "css", "webgl", "websockets", "nodejs", "node.js"];
 var technologyStats = {};
+
+
+// --------------------------------------------------------------------
+// SET UP PUSHER
+// --------------------------------------------------------------------
+var Pusher = require("pusher");
+var pusher = new Pusher({
+  appId: config.app_id,
+  key: config.key,
+  secret: config.secret
+});
 
 
 // --------------------------------------------------------------------
@@ -90,10 +104,10 @@ app.listen(process.env.PORT || 5001);
 // --------------------------------------------------------------------
 
 var twit = new twitter({
-  consumer_key: "EaoteM9pLEAlf9BXO16TPfOyH",
-  consumer_secret: "5DU8fOxHEsuGYko9uKCGW6BNWrstdpL1gOCjVQja9p8ApB63LT",
-  access_token_key: "2838000388-RFNFDn2AxTgq4GJe3PAjL7Qdt6R9O5uc0KsRlbJ",
-  access_token_secret: "O4oaQAN7cWz5FzRXEDOhGn1hSeHN8WI08NcRZWOjNSlRy"
+  consumer_key: config.twitter_consumer_key,
+  consumer_secret: config.twitter_consumer_secret,
+  access_token_key: config.twitter_access_token_key,
+  access_token_secret: config.twitter_access_token_secret
 });
 
 twit.stream("filter", {
@@ -140,18 +154,27 @@ var processTweet = function(tweet) {
       var count = 1;
 
       // New minute
-      if (!technologyStats[keyword].past24.lastTime || technologyStats[keyword].past24.lastTime.getHours() != statsTime.getHours()) {
+      if (!technologyStats[keyword].past24.lastTime || technologyStats[keyword].past24.lastTime.getMinutes() != statsTime.getMinutes()) {
+        // Send previous minute to graphs
+        var statsPayload = {
+          tech: keyword.toLowerCase(),
+          time: technologyStats[keyword].past24.lastTime.getTime(),
+          data: technologyStats[keyword].past24.data[0]
+        };
+
+        pusher.trigger("stats", "update", statsPayload);
+
         if (!silent) console.log("Adding to new stats minute");
 
         technologyStats[keyword].past24.data.unshift(count);
         technologyStats[keyword].past24.total += count;
 
         // Crop array to last 24 hours
-        if (technologyStats[keyword].past24.data.length > 24) {
+        if (technologyStats[keyword].past24.data.length > 1440) {
           if (!silent) console.log("Cropping stats array for past 24 hours");
 
           // Crop
-          var removed = technologyStats[keyword].past24.data.splice(23);
+          var removed = technologyStats[keyword].past24.data.splice(1439);
 
           // Update total
           _.each(removed, function(value) {
