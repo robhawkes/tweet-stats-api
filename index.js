@@ -1,3 +1,5 @@
+// TODO: Send stats updates for all areas in one go (per minute)
+
 var _ = require("underscore");
 var twitter = require("twitter");
 
@@ -101,6 +103,73 @@ app.listen(process.env.PORT || 5001);
 
 
 // --------------------------------------------------------------------
+// STATS UPDATES
+// --------------------------------------------------------------------
+
+// Populate initial statistics for each technology
+_.each(keywords, function(tech) {
+  if (!technologyStats[tech]) {
+    technologyStats[tech] = {
+      past24: {
+        total: 0,
+        // Per-minute, with anything after 24-hours removed
+        data: [0]
+      }
+    }
+  }
+});
+
+var statsTime = new Date();
+
+var updateStats = function() {
+  var currentTime = new Date();
+  
+  if (statsTime.getMinutes() == currentTime.getMinutes()) {
+    return;
+  }
+
+  var statsPayload = {};
+
+  _.each(keywords, function(tech) {
+    statsPayload[tech] = {
+      time: statsTime.getTime(),
+      value: technologyStats[keyword].past24.data[0]
+    };
+
+    // Add new minute with a count of 0
+    technologyStats[tech].past24.data.unshift(0);
+
+    // Crop array to last 24 hours
+    if (technologyStats[tech].past24.data.length > 1440) {
+      if (!silent) console.log("Cropping stats array for past 24 hours");
+
+      // Crop
+      var removed = technologyStats[tech].past24.data.splice(1439);
+
+      // Update total
+      _.each(removed, function(value) {
+        technologyStats[tech].past24.total -= value;
+      });
+    }
+  });
+
+  if (!silent) console.log("Sending previous minute via Pusher");
+  if (!silent) console.log(statsPayload);
+
+  // Send stats update via Pusher
+  pusher.trigger("stats", "update", statsPayload);
+
+  statsTime = currentTime;
+
+  setTimeout(function() {
+    updateStats();
+  }, 1000);
+};
+
+updateStats();
+
+
+// --------------------------------------------------------------------
 // SET UP TWITTER
 // --------------------------------------------------------------------
 
@@ -134,70 +203,14 @@ twit.stream("filter", {
 });
 
 var processTweet = function(tweet) {
-  // Current time for stats
-  var statsTime = new Date();
-
   // Look for keywords within text
   _.each(keywords, function(keyword) {
     if (tweet.text.toLowerCase().indexOf(keyword.toLowerCase()) > -1) {
-
       if (!silent) console.log("A tweet about " + keyword);
 
-      if (!technologyStats[keyword]) {
-        technologyStats[keyword] = {
-          past24: {
-            total: 0,
-            lastTime: null,
-            // Per-minute, with anything after 24-hours removed
-            data: []
-          }
-        }
-      }
-
-      var count = 1;
-
-      // New minute
-      if (!technologyStats[keyword].past24.lastTime || technologyStats[keyword].past24.lastTime.getMinutes() != statsTime.getMinutes()) {
-        if (technologyStats[keyword].past24.data[0]) {
-          if (!silent) console.log("Sending previous minute via Pusher");
-
-          // Send previous minute to graphs
-          var statsPayload = {
-            tech: keyword.toLowerCase(),
-            time: technologyStats[keyword].past24.lastTime.getTime(),
-            value: technologyStats[keyword].past24.data[0]
-          };
-
-          if (!silent) console.log(statsPayload);
-
-          pusher.trigger("stats", "update", statsPayload);
-        }
-
-        if (!silent) console.log("Adding to new stats minute");
-
-        technologyStats[keyword].past24.data.unshift(count);
-        technologyStats[keyword].past24.total += count;
-
-        // Crop array to last 24 hours
-        if (technologyStats[keyword].past24.data.length > 1440) {
-          if (!silent) console.log("Cropping stats array for past 24 hours");
-
-          // Crop
-          var removed = technologyStats[keyword].past24.data.splice(1439);
-
-          // Update total
-          _.each(removed, function(value) {
-            technologyStats[keyword].past24.total -= value;
-          });
-        }
-
-        technologyStats[keyword].past24.lastTime = statsTime;
-      } else {
-        // Add to most recent minute
-        if (!silent) console.log("Adding to existing stats minute");
-        technologyStats[keyword].past24.data[0] += count;
-        technologyStats[keyword].past24.total += count;
-      }
+      // Update stats
+      technologyStats[keyword].past24.data[0] += 1;
+      technologyStats[keyword].past24.total += 1;
     }
   });
 };
