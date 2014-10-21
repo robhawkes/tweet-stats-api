@@ -137,7 +137,7 @@ var updateStats = function() {
   _.each(keywords, function(tech) {
     statsPayload[tech] = {
       time: statsTime.getTime(),
-      value: technologyStats[keyword].past24.data[0]
+      value: technologyStats[tech].past24.data[0]
     };
 
     // Add new minute with a count of 0
