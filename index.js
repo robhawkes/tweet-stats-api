@@ -125,6 +125,10 @@ var updateStats = function() {
   var currentTime = new Date();
   
   if (statsTime.getMinutes() == currentTime.getMinutes()) {
+    setTimeout(function() {
+      updateStats();
+    }, 1000);
+
     return;
   }
 
