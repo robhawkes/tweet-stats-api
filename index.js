@@ -84,13 +84,21 @@ app.get("/stats/:tech/24hours-geckoboard.json", function(req, res, next) {
     return;
   }
 
+  var statsCopy = JSON.parse(JSON.stringify(technologyStats[req.params.tech].past24.data)).reverse();
+
+  var numbers = [];
+
+  _.each(statsCopy, function(stat) {
+    numbers.push(stat.value)
+  });
+
   var output = {
     item: [
       {
         text: "Past 24 hours",
         value: technologyStats[req.params.tech].past24.total
       },
-      JSON.parse(JSON.stringify(technologyStats[req.params.tech].past24.data)).reverse()
+      numbers
     ]
   };
 
