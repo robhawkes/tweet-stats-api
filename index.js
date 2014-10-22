@@ -26,11 +26,15 @@ var silent = true;
 var keywords = ["html5", "javascript", "css", "webgl", "websockets", "nodejs", "node.js"];
 var technologyStats = {};
 
+var log = function() {
+  if(!silent) console.log.apply(console, arguments);
+};
+
 // Capture uncaught errors
 process.on("uncaughtException", function(err) {
   console.log(err);
 
-  if (!silent) console.log("Attempting to restart stream");
+  log("Attempting to restart stream");
   restartStream();
 });
 
@@ -59,6 +63,19 @@ app.use(bodyParser.json());
 
 // Ping
 app.get("/ping", function(req, res) {
+  res.status(200).end();
+});
+
+app.post("/webhook", function(req,res) {
+  var event = req.body.events[ 0 ];
+  log("webhook received: %s %s", event.channel, event.name);
+
+  // if(event.name === "channel_vacated") {
+  //   unsubscribe(event.channel);
+  // }
+  // else if(event.name === "channel_occupied") {
+  //   subscribe(event.channel);
+  // }
   res.status(200).end();
 });
 
@@ -113,8 +130,8 @@ app.get("/stats/:tech/24hours-geckoboard.json", function(req, res, next) {
 
 // Simple logger
 app.use(function(req, res, next){
-  if (!silent) console.log("%s %s", req.method, req.url);
-  if (!silent) console.log(req.body);
+  log("%s %s", req.method, req.url);
+  log(req.body);
   next();
 });
 
@@ -125,8 +142,11 @@ app.use(errorHandler({
 }));
 
 // Open server on specified port
-if (!silent) console.log("Starting Express server");
-app.listen(process.env.PORT || 5001);
+log("Starting Express server");
+var port = process.env.PORT || 5001;
+app.listen(port, function() {
+  console.log('express listening on port %d', port);
+});
 
 
 // --------------------------------------------------------------------
@@ -147,13 +167,13 @@ _.each(keywords, function(tech) {
           time: statsTime.getTime()
         }]
       }
-    }
+    };
   }
 });
 
 var updateStats = function() {
   var currentTime = new Date();
-  
+
   if (statsTime.getMinutes() == currentTime.getMinutes()) {
     setTimeout(function() {
       updateStats();
@@ -178,7 +198,7 @@ var updateStats = function() {
 
     // Crop array to last 24 hours
     if (technologyStats[tech].past24.data.length > 1440) {
-      if (!silent) console.log("Cropping stats array for past 24 hours");
+      log("Cropping stats array for past 24 hours");
 
       // Crop
       var removed = technologyStats[tech].past24.data.splice(1439);
@@ -190,8 +210,8 @@ var updateStats = function() {
     }
   });
 
-  if (!silent) console.log("Sending previous minute via Pusher");
-  if (!silent) console.log(statsPayload);
+  log("Sending previous minute via Pusher");
+  log(statsPayload);
 
   // Send stats update via Pusher
   pusher.trigger("stats", "update", statsPayload);
@@ -251,7 +271,7 @@ var startStream = function() {
 };
 
 var restartStream = function() {
-  if (!silent) console.log("Aborting previous stream");
+  log("Aborting previous stream");
   if (twitterStream) {
     twitterStream.destroy();
   }
@@ -259,7 +279,7 @@ var restartStream = function() {
   streamRetryCount += 1;
 
   if (streamRetryCount >= streamRetryLimit) {
-    if (!silent) console.log("Aborting stream retry after too many attempts");
+    log("Aborting stream retry after too many attempts");
     return;
   }
 
@@ -270,7 +290,7 @@ var processTweet = function(tweet) {
   // Look for keywords within text
   _.each(keywords, function(keyword) {
     if (tweet.text.toLowerCase().indexOf(keyword.toLowerCase()) > -1) {
-      if (!silent) console.log("A tweet about " + keyword);
+      log("A tweet about " + keyword);
 
       // Update stats
       technologyStats[keyword].past24.data[0].value += 1;
