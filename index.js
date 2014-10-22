@@ -26,6 +26,13 @@ var silent = true;
 var keywords = ["html5", "javascript", "css", "webgl", "websockets", "nodejs", "node.js"];
 var technologyStats = {};
 
+// Capture uncaught errors
+process.on("uncaughtException", function(err) {
+  console.log(err);
+
+  if (!silent) console.log("Attempting to restart stream");
+  restartStream();
+});
 
 // --------------------------------------------------------------------
 // SET UP PUSHER
@@ -259,10 +266,4 @@ var processTweet = function(tweet) {
   });
 };
 
-// Capture uncaught errors
-process.on("uncaughtException", function(err) {
-  console.log(err);
-
-  if (!silent) console.log("Attempting to restart stream");
-  restartStream();
-});
+startStream();
