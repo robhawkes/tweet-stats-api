@@ -34,7 +34,8 @@ var Pusher = require("pusher");
 var pusher = new Pusher({
   appId: config.pusher_app_id,
   key: config.pusher_key,
-  secret: config.pusher_secret
+  secret: config.pusher_secret,
+  host: "api-megabus.pusher.com"
 });
 
 
