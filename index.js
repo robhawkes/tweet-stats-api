@@ -74,6 +74,9 @@ app.get("/stats/:tech/24hours.json", function(req, res, next) {
     data: JSON.parse(JSON.stringify(technologyStats[req.params.tech].past24.data)).reverse()
   };
 
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+
   res.json(output);
 });
 
@@ -101,6 +104,9 @@ app.get("/stats/:tech/24hours-geckoboard.json", function(req, res, next) {
       numbers
     ]
   };
+
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
 
   res.json(output);
 });
