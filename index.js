@@ -112,6 +112,8 @@ app.listen(process.env.PORT || 5001);
 // STATS UPDATES
 // --------------------------------------------------------------------
 
+var statsTime = new Date();
+
 // Populate initial statistics for each technology
 _.each(keywords, function(tech) {
   if (!technologyStats[tech]) {
@@ -119,13 +121,14 @@ _.each(keywords, function(tech) {
       past24: {
         total: 0,
         // Per-minute, with anything after 24-hours removed
-        data: [0]
+        data: [{
+          value: 0,
+          time: statsTime.getTime()
+        }]
       }
     }
   }
 });
-
-var statsTime = new Date();
 
 var updateStats = function() {
   var currentTime = new Date();
