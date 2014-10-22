@@ -249,7 +249,7 @@ var restartStream = function() {
     return;
   }
 
-  setTimeout(startStream, streamRetryDelay * streamRetryCount);
+  setTimeout(startStream, streamRetryDelay * (streamRetryCount * 2));
 };
 
 var processTweet = function(tweet) {
