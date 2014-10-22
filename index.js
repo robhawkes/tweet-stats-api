@@ -69,6 +69,21 @@ app.get("/stats/:tech/24hours.json", function(req, res, next) {
   }
 
   var output = {
+    total: technologyStats[req.params.tech].past24.total
+    data: JSON.parse(JSON.stringify(technologyStats[req.params.tech].past24.data)).reverse()
+  };
+
+  res.json(output);
+});
+
+// Get stats for past 24 hours - Geckoboard formatting
+app.get("/stats/:tech/24hours-geckoboard.json", function(req, res, next) {
+  if (!technologyStats[req.params.tech]) {
+    res.status(404).end();
+    return;
+  }
+
+  var output = {
     item: [
       {
         text: "Past 24 hours",
@@ -137,11 +152,14 @@ var updateStats = function() {
   _.each(keywords, function(tech) {
     statsPayload[tech] = {
       time: statsTime.getTime(),
-      value: technologyStats[tech].past24.data[0]
+      value: technologyStats[tech].past24.data[0].value
     };
 
     // Add new minute with a count of 0
-    technologyStats[tech].past24.data.unshift(0);
+    technologyStats[tech].past24.data.unshift({
+      value: 0,
+      time: currentTime.getTime()
+    });
 
     // Crop array to last 24 hours
     if (technologyStats[tech].past24.data.length > 1440) {
@@ -184,27 +202,55 @@ var twit = new twitter({
   access_token_secret: config.twitter_access_token_secret
 });
 
-twit.stream("filter", {
-  track: keywords.join(",")
-}, function(stream) {
-  stream.on("data", function(data) {
-    processTweet(data);
-  });
+var twitterStream;
+var streamRetryCount = 0;
+var streamRetryLimit = 10;
+var streamRetryDelay = 1000;
 
-  stream.on("error", function(error) {
-    // throw new Error(error);
-    console.log("Error");
-    console.log(error);
-  });
+var startStream = function() {
+  twit.stream("filter", {
+    track: keywords.join(",")
+  }, function(stream) {
+    twitterStream = stream;
 
-  stream.on("end", function(response) {
-    console.log("Stream end");
-    // console.log(response);
-  });
+    twitterStream.on("data", function(data) {
+      if (streamRetryCount > 0) {
+        streamRetryCount = 0;
+      }
 
-  // Disconnect stream after five seconds
-  // setTimeout(stream.destroy, 5000);
+      processTweet(data);
+    });
+
+    twitterStream.on("error", function(error) {
+      // throw new Error(error);
+      console.log("Error");
+      console.log(error);
+
+      restartStream();
+    });
+
+    twitterStream.on("end", function(response) {
+      console.log("Stream end");
+      restartStream();
+    });
+  });
 });
+
+var restartStream = function() {
+  if (!silent) console.log("Aborting previous stream");
+  if (twitterStream) {
+    twitterStream.destroy();
+  }
+
+  streamRetryCount += 1;
+
+  if (streamRetryCount >= streamRetryLimit) {
+    if (!silent) console.log("Aborting stream retry after too many attempts");
+    return;
+  }
+
+  setTimeout(startStream, streamRetryDelay * streamRetryCount);
+};
 
 var processTweet = function(tweet) {
   // Look for keywords within text
@@ -213,8 +259,16 @@ var processTweet = function(tweet) {
       if (!silent) console.log("A tweet about " + keyword);
 
       // Update stats
-      technologyStats[keyword].past24.data[0] += 1;
+      technologyStats[keyword].past24.data[0].value += 1;
       technologyStats[keyword].past24.total += 1;
     }
   });
 };
+
+// Capture uncaught errors
+process.on("uncaughtException", function(err) {
+  console.log(err);
+
+  if (!silent) console.log("Attempting to restart stream");
+  restartStream();
+});
