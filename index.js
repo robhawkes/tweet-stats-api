@@ -69,9 +69,17 @@ app.get("/stats/:tech/24hours.json", function(req, res, next) {
     return;
   }
 
+  var statsCopy = JSON.parse(JSON.stringify(technologyStats[req.params.tech].past24.data)).reverse();
+
+  // Pop the current minute off
+  var removedStat = statsCopy.pop();
+
+  // Reduce total to account for removed stat
+  var newTotal = technologyStats[req.params.tech].past24.total - removedStat.value;
+
   var output = {
-    total: technologyStats[req.params.tech].past24.total,
-    data: JSON.parse(JSON.stringify(technologyStats[req.params.tech].past24.data)).reverse()
+    total: newTotal,
+    data: statsCopy
   };
 
   res.header("Access-Control-Allow-Origin", "*");
@@ -89,6 +97,12 @@ app.get("/stats/:tech/24hours-geckoboard.json", function(req, res, next) {
 
   var statsCopy = JSON.parse(JSON.stringify(technologyStats[req.params.tech].past24.data)).reverse();
 
+  // Pop the current minute off
+  var removedStat = statsCopy.pop();
+
+  // Reduce total to account for removed stat
+  var newTotal = technologyStats[req.params.tech].past24.total - removedStat.value;
+
   var numbers = [];
 
   _.each(statsCopy, function(stat) {
@@ -99,7 +113,7 @@ app.get("/stats/:tech/24hours-geckoboard.json", function(req, res, next) {
     item: [
       {
         text: "Past 24 hours",
-        value: technologyStats[req.params.tech].past24.total
+        value: newTotal
       },
       numbers
     ]
