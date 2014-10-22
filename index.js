@@ -228,7 +228,7 @@ var startStream = function() {
       restartStream();
     });
   });
-});
+};
 
 var restartStream = function() {
   if (!silent) console.log("Aborting previous stream");
