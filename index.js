@@ -64,7 +64,7 @@ app.get("/stats/:tech/24hours.json", function(req, res, next) {
   }
 
   var output = {
-    total: technologyStats[req.params.tech].past24.total
+    total: technologyStats[req.params.tech].past24.total,
     data: JSON.parse(JSON.stringify(technologyStats[req.params.tech].past24.data)).reverse()
   };
 
