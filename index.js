@@ -1,5 +1,3 @@
-// TODO: Send stats updates for all areas in one go (per minute)
-
 var _ = require("underscore");
 var twitter = require("twitter");
 
@@ -23,7 +21,7 @@ try {
   }
 }
 
-var silent = false;
+var silent = true;
 
 var keywords = ["html5", "javascript", "css", "webgl", "websockets", "nodejs", "node.js"];
 var technologyStats = {};
@@ -36,8 +34,7 @@ var Pusher = require("pusher");
 var pusher = new Pusher({
   appId: config.pusher_app_id,
   key: config.pusher_key,
-  secret: config.pusher_secret,
-  host: "api-megabus.pusher.com"
+  secret: config.pusher_secret
 });
 
 
@@ -52,9 +49,6 @@ app.use(bodyParser.urlencoded({
   extended: true
 }));
 app.use(bodyParser.json());
-
-// Serve static files from directory
-// app.use(express.static(root));
 
 // Ping
 app.get("/ping", function(req, res) {
@@ -95,9 +89,6 @@ app.get("/stats/:tech/24hours-geckoboard.json", function(req, res, next) {
 
   res.json(output);
 });
-
-// Sentry
-// app.use(raven.middleware.express(ravenClient));
 
 // Simple logger
 app.use(function(req, res, next){
@@ -222,7 +213,6 @@ var startStream = function() {
     });
 
     twitterStream.on("error", function(error) {
-      // throw new Error(error);
       console.log("Error");
       console.log(error);
 
