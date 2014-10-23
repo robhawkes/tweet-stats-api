@@ -17,14 +17,15 @@ try {
     twitter_consumer_key: process.env.TWITTER_CONSUMER_KEY,
     twitter_consumer_secret: process.env.TWITTER_CONSUMER_SECRET,
     twitter_access_token_key: process.env.TWITTER_ACCESS_TOKEN_KEY,
-    twitter_access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET
+    twitter_access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
+    keywords: (process.env.KEYWORDS) ? process.env.KEYWORDS.split(",").trim() : []
   }
 }
 
 var silent = true;
 
-var keywords = ["html5", "javascript", "css", "webgl", "websockets", "nodejs", "node.js"];
-var technologyStats = {};
+var keywords = config.keywords;
+var keywordStats = {};
 
 // Capture uncaught errors
 process.on("uncaughtException", function(err) {
@@ -62,20 +63,28 @@ app.get("/ping", function(req, res) {
   res.status(200).end();
 });
 
+// TODO: Provide endpoint for accessing list of active keywords
+app.get("/keywords.json", function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+
+  res.json(keywords);
+});
+
 // Get stats for past 24 hours
-app.get("/stats/:tech/24hours.json", function(req, res, next) {
-  if (!technologyStats[req.params.tech]) {
+app.get("/stats/:keyword/24hours.json", function(req, res, next) {
+  if (!keywordStats[req.params.keyword]) {
     res.status(404).end();
     return;
   }
 
-  var statsCopy = JSON.parse(JSON.stringify(technologyStats[req.params.tech].past24.data)).reverse();
+  var statsCopy = JSON.parse(JSON.stringify(keywordStats[req.params.keyword].past24.data)).reverse();
 
   // Pop the current minute off
   var removedStat = statsCopy.pop();
 
   // Reduce total to account for removed stat
-  var newTotal = technologyStats[req.params.tech].past24.total - removedStat.value;
+  var newTotal = keywordStats[req.params.keyword].past24.total - removedStat.value;
 
   var output = {
     total: newTotal,
@@ -89,19 +98,19 @@ app.get("/stats/:tech/24hours.json", function(req, res, next) {
 });
 
 // Get stats for past 24 hours - Geckoboard formatting
-app.get("/stats/:tech/24hours-geckoboard.json", function(req, res, next) {
-  if (!technologyStats[req.params.tech]) {
+app.get("/stats/:keyword/24hours-geckoboard.json", function(req, res, next) {
+  if (!keywordStats[req.params.keyword]) {
     res.status(404).end();
     return;
   }
 
-  var statsCopy = JSON.parse(JSON.stringify(technologyStats[req.params.tech].past24.data)).reverse();
+  var statsCopy = JSON.parse(JSON.stringify(keywordStats[req.params.keyword].past24.data)).reverse();
 
   // Pop the current minute off
   var removedStat = statsCopy.pop();
 
   // Reduce total to account for removed stat
-  var newTotal = technologyStats[req.params.tech].past24.total - removedStat.value;
+  var newTotal = keywordStats[req.params.keyword].past24.total - removedStat.value;
 
   var numbers = [];
 
@@ -149,10 +158,10 @@ app.listen(process.env.PORT || 5001);
 
 var statsTime = new Date();
 
-// Populate initial statistics for each technology
-_.each(keywords, function(tech) {
-  if (!technologyStats[tech]) {
-    technologyStats[tech] = {
+// Populate initial statistics for each keyword
+_.each(keywords, function(keyword) {
+  if (!keywordStats[keyword]) {
+    keywordStats[keyword] = {
       past24: {
         total: 0,
         // Per-minute, with anything after 24-hours removed
@@ -178,28 +187,28 @@ var updateStats = function() {
 
   var statsPayload = {};
 
-  _.each(keywords, function(tech) {
-    statsPayload[tech] = {
+  _.each(keywords, function(keyword) {
+    statsPayload[keyword] = {
       time: statsTime.getTime(),
-      value: technologyStats[tech].past24.data[0].value
+      value: keywordStats[keyword].past24.data[0].value
     };
 
     // Add new minute with a count of 0
-    technologyStats[tech].past24.data.unshift({
+    keywordStats[keyword].past24.data.unshift({
       value: 0,
       time: currentTime.getTime()
     });
 
     // Crop array to last 24 hours
-    if (technologyStats[tech].past24.data.length > 1440) {
+    if (keywordStats[keyword].past24.data.length > 1440) {
       if (!silent) console.log("Cropping stats array for past 24 hours");
 
       // Crop
-      var removed = technologyStats[tech].past24.data.splice(1439);
+      var removed = keywordStats[keyword].past24.data.splice(1439);
 
       // Update total
       _.each(removed, function(value) {
-        technologyStats[tech].past24.total -= value;
+        keywordStats[keyword].past24.total -= value;
       });
     }
   });
@@ -264,20 +273,29 @@ var startStream = function() {
   });
 };
 
+var restartingStream = false;
 var restartStream = function() {
+  if (restartingStream) {
+    if (!silent) console.log("Aborting stream retry as it is already being restarted");
+  }
+
   if (!silent) console.log("Aborting previous stream");
   if (twitterStream) {
     twitterStream.destroy();
   }
 
   streamRetryCount += 1;
+  restartingStream = true;
 
   if (streamRetryCount >= streamRetryLimit) {
     if (!silent) console.log("Aborting stream retry after too many attempts");
     return;
   }
 
-  setTimeout(startStream, streamRetryDelay * (streamRetryCount * 2));
+  setTimeout(function() {
+    restartingStream = false;
+    startStream();
+  }, streamRetryDelay * (streamRetryCount * 2));
 };
 
 var processTweet = function(tweet) {
@@ -287,10 +305,11 @@ var processTweet = function(tweet) {
       if (!silent) console.log("A tweet about " + keyword);
 
       // Update stats
-      technologyStats[keyword].past24.data[0].value += 1;
-      technologyStats[keyword].past24.total += 1;
+      keywordStats[keyword].past24.data[0].value += 1;
+      keywordStats[keyword].past24.total += 1;
     }
   });
 };
 
-startStream();
+// Start stream after short timeout to avoid triggering multi-connection errors
+setTimeout(startStream, 2000);
