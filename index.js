@@ -18,7 +18,7 @@ try {
     twitter_consumer_secret: process.env.TWITTER_CONSUMER_SECRET,
     twitter_access_token_key: process.env.TWITTER_ACCESS_TOKEN_KEY,
     twitter_access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
-    keywords: (process.env.KEYWORDS) ? process.env.KEYWORDS.split(",").trim() : []
+    keywords: (process.env.KEYWORDS) ? process.env.KEYWORDS.split(",") : [],
   }
 }
 
