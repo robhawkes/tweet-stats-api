@@ -1,5 +1,5 @@
 var _ = require("underscore");
-var twitter = require("twitter");
+var Twit = require("twit");
 
 var express = require("express");
 var bodyParser = require("body-parser");
@@ -18,16 +18,46 @@ try {
     twitter_consumer_secret: process.env.TWITTER_CONSUMER_SECRET,
     twitter_access_token_key: process.env.TWITTER_ACCESS_TOKEN_KEY,
     twitter_access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET
-  }
+  };
 }
 
-var silent = true;
+var silent = false;
 
-var keywords = ["html5", "javascript", "css", "webgl", "websockets", "nodejs", "node.js"];
+var keywords = [];
 var technologyStats = {};
 
 var log = function() {
   if(!silent) console.log.apply(console, arguments);
+};
+
+var subscribe = function(channel) {
+  // Only subscribe if not already done so
+  var keywordIndex = keywords.indexOf(channel);
+  if(keywordIndex >= 0) return;
+
+  keywords.push(channel);
+
+  // restart with new keyword
+  restartStream();
+
+  // start recording stats for new keyword
+  // after stopping stream - just in case
+  trackStat(channel);
+};
+
+var unsubscribe = function(channel) {
+  // Only unsubscribe if actually subscribed
+  var keywordIndex = keywords.indexOf(channel);
+  if(keywordIndex < 0) return;
+
+  keywords.splice(keywordIndex, 1);
+
+  // restart with without the removed keyword
+  restartStream();
+
+  // stop recording stats for removed keyword
+  // after stopping stream - just in case
+  untrackStat(channel);
 };
 
 // Capture uncaught errors
@@ -66,16 +96,20 @@ app.get("/ping", function(req, res) {
   res.status(200).end();
 });
 
+app.get("/filters", function(req, res) {
+  res.json(keywords);
+});
+
 app.post("/webhook", function(req,res) {
   var event = req.body.events[ 0 ];
   log("webhook received: %s %s", event.channel, event.name);
 
-  // if(event.name === "channel_vacated") {
-  //   unsubscribe(event.channel);
-  // }
-  // else if(event.name === "channel_occupied") {
-  //   subscribe(event.channel);
-  // }
+  if(event.name === "channel_vacated") {
+    unsubscribe(event.channel);
+  }
+  else if(event.name === "channel_occupied") {
+    subscribe(event.channel);
+  }
   res.status(200).end();
 });
 
@@ -109,7 +143,7 @@ app.get("/stats/:tech/24hours-geckoboard.json", function(req, res, next) {
   var numbers = [];
 
   _.each(statsCopy, function(stat) {
-    numbers.push(stat.value)
+    numbers.push(stat.value);
   });
 
   var output = {
@@ -155,8 +189,7 @@ app.listen(port, function() {
 
 var statsTime = new Date();
 
-// Populate initial statistics for each technology
-_.each(keywords, function(tech) {
+var trackStat = function(tech) {
   if (!technologyStats[tech]) {
     technologyStats[tech] = {
       past24: {
@@ -169,6 +202,17 @@ _.each(keywords, function(tech) {
       }
     };
   }
+};
+
+var untrackStat = function(tech) {
+  if (technologyStats[tech]) {
+    delete technologyStats[tech];
+  }
+};
+
+// Populate initial statistics for each technology
+_.each(keywords, function(tech) {
+  trackStat(tech);
 });
 
 var updateStats = function() {
@@ -182,13 +226,17 @@ var updateStats = function() {
     return;
   }
 
-  var statsPayload = {};
-
   _.each(keywords, function(tech) {
-    statsPayload[tech] = {
+    var payload = {
       time: statsTime.getTime(),
       value: technologyStats[tech].past24.data[0].value
     };
+
+    log("Sending previous minute via Pusher for %s", tech);
+    log(payload);
+
+    // Send stats update via Pusher
+    pusher.trigger(tech, "update", payload);
 
     // Add new minute with a count of 0
     technologyStats[tech].past24.data.unshift({
@@ -210,12 +258,6 @@ var updateStats = function() {
     }
   });
 
-  log("Sending previous minute via Pusher");
-  log(statsPayload);
-
-  // Send stats update via Pusher
-  pusher.trigger("stats", "update", statsPayload);
-
   statsTime = currentTime;
 
   setTimeout(function() {
@@ -230,10 +272,10 @@ updateStats();
 // SET UP TWITTER
 // --------------------------------------------------------------------
 
-var twit = new twitter({
+var twit = new Twit({
   consumer_key: config.twitter_consumer_key,
   consumer_secret: config.twitter_consumer_secret,
-  access_token_key: config.twitter_access_token_key,
+  access_token: config.twitter_access_token_key,
   access_token_secret: config.twitter_access_token_secret
 });
 
@@ -243,37 +285,36 @@ var streamRetryLimit = 10;
 var streamRetryDelay = 1000;
 
 var startStream = function() {
-  twit.stream("filter", {
-    track: keywords.join(",")
-  }, function(stream) {
-    twitterStream = stream;
+  if(!keywords.length) {
+    log("No keywords to track. Not starting Twitter stream");
+    return;
+  }
 
-    twitterStream.on("data", function(data) {
-      if (streamRetryCount > 0) {
-        streamRetryCount = 0;
-      }
+  twitterStream = twit.stream("statuses/filter", {
+    track: keywords
+  });
 
-      processTweet(data);
-    });
+  twitterStream.on("tweet", function(data) {
+    if (streamRetryCount > 0) {
+      streamRetryCount = 0;
+    }
 
-    twitterStream.on("error", function(error) {
-      console.log("Error");
-      console.log(error);
+    processTweet(data);
+  });
 
-      restartStream();
-    });
+  twitterStream.on("disconnect", function(message) {
+    console.log("Error");
+    console.log(message);
 
-    twitterStream.on("end", function(response) {
-      console.log("Stream end");
-      restartStream();
-    });
+    // restartStream();
+    // TODO: what if we're the one who has triggered the disconnect
   });
 };
 
 var restartStream = function() {
   log("Aborting previous stream");
   if (twitterStream) {
-    twitterStream.destroy();
+    twitterStream.stop();
   }
 
   streamRetryCount += 1;
