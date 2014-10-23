@@ -1,4 +1,4 @@
-# Tweet Stats
+# Tweet Stats API
 
 Realtime statistics on Twitter keywords
 
