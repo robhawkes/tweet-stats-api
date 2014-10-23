@@ -4,7 +4,7 @@ Realtime statistics on Twitter keywords
 
 Demo: [http://tweet-stats.herokuapp.com](http://tweet-stats.herokuapp.com/)
 
-![](http://cl.ly/image/3G0C1e3I2y43/tweet-stats.jpg)
+[![](http://cl.ly/image/3G0C1e3I2y43/tweet-stats.jpg)](http://tweet-stats.herokuapp.com/)
 
 
 ## Getting up and running
