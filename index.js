@@ -32,7 +32,7 @@ process.on("uncaughtException", function(err) {
   console.log(err);
 
   if (!silent) console.log("Attempting to restart stream");
-  restartStream();
+  setImmediate(restartStream);
 });
 
 // --------------------------------------------------------------------
@@ -263,12 +263,12 @@ var startStream = function() {
       console.log("Error");
       console.log(error);
 
-      restartStream();
+      setImmediate(restartStream);
     });
 
     twitterStream.on("end", function(response) {
       console.log("Stream end");
-      restartStream();
+      setImmediate(restartStream);
     });
   });
 };
